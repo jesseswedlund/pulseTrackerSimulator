@@ -27,7 +27,7 @@ Via the Azure Command Line:
 - (If you haven't installed it yet, do so: https://docs.microsoft.com/en-us/cli/azure/install-azure-cli-windows?tabs=azure-cli)
 - open up a new PowerShell
 - az login
-- az iot hub monitor-events --output table --hub-name Fitness Tracker
+- az iot hub monitor-events --output table --hub-name FitnessTracker
 - If it says it can't find this in your subscription, open up the resource in Azure Portal and find the subscription ID for this the FitnessTracker IoT Hub. You may have to switch to that subscription number by running: az account set -s “{subscriptionNumber}”
 
 Then via the original Powershell, run:

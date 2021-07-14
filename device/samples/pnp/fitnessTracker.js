@@ -13,6 +13,7 @@ const SymmetricKeySecurityClient =
   require("azure-iot-security-symmetric-key").SymmetricKeySecurityClient;
 const ProvisioningDeviceClient =
   require("azure-iot-provisioning-device").ProvisioningDeviceClient;
+const { data } = require("./data");
 
 // String containing Hostname, Device Id & Device Key in the following formats:
 //  'HostName=<iothub_host_name>;DeviceId=<device_id>;SharedAccessKey=<device_key>'
@@ -33,13 +34,13 @@ const fitnessTracker1ComponentName = "fitnesstracker1";
 const deviceInfoComponentName = "deviceInformation";
 const commandComponentCommandNameSeparator = "*";
 let intervalToken1;
-let intervalToken2;
-let intervalToken3;
 
 class PulseSensor {
   constructor() {
-    this.currPulse = 80;
-    this.maxPulse = this.curPulse;
+    this.index = 0;
+    this.increasing = true;
+    this.currPulse = data[this.index];
+    this.maxPulse = this.currPulse;
     this.minPulse = this.currPulse;
     this.cumulativePulse = this.currPulse;
     this.startTime = new Date(Date.now()).toISOString();
@@ -49,7 +50,25 @@ class PulseSensor {
     return { pulse: this.currPulse };
   }
   updateSensor() {
-    this.currPulse = this.currPulse + 1;
+    if (this.increasing) {
+      ++this.index;
+      if (this.index < data.length) {
+        this.currPulse = data[this.index];
+      } else {
+        this.increasing = false;
+        --this.index;
+        this.currPulse = data[this.index];
+      }
+    } else {
+      --this.index;
+      if (this.index > -1) {
+        this.currPulse = data[this.index];
+      } else {
+        this.increasing = true;
+        ++this.index;
+        this.currPulse = data[this.index];
+      }
+    }
     this.cumulativePulse += this.currPulse;
     this.numberOfPulseReadings++;
     if (this.currPulse > this.maxPulse) {
@@ -228,8 +247,6 @@ const exitListener = async (deviceClient) => {
     if (data === "q\n" || data === "Q\n") {
       console.log("Clearing intervals and exiting sample.");
       clearInterval(intervalToken1);
-      clearInterval(intervalToken2);
-      clearInterval(intervalToken3);
       deviceClient.close();
       process.exit();
     } else {
@@ -334,12 +351,11 @@ async function main() {
 
     // Send Telemetry after some interval
     let index1 = 0;
-    let index2 = 0;
-    let index3 = 0;
+
     intervalToken1 = setInterval(() => {
-      const data = JSON.stringify(
-        fitnessTracker1.updateSensor().getCurrentPulseObject()
-      );
+      const { pulse } = fitnessTracker1.updateSensor().getCurrentPulseObject();
+      const maxMin = fitnessTracker1.getMaxMinReportObject();
+      const data = JSON.stringify({ ...maxMin, pulse: pulse });
       sendTelemetry(client, data, index1, fitnessTracker1ComponentName).catch(
         (err) => console.log("error ", err.toString())
       );
@@ -365,8 +381,8 @@ async function main() {
 
       const patchDeviceInfo = helperCreateReportedPropertiesPatch(
         {
-          manufacturer: "Contoso Device Corporation",
-          model: "Contoso 47-turbo",
+          manufacturer: "Fitbit",
+          model: "",
           swVersion: "10.89",
           osName: "Contoso_OS",
           processorArchitecture: "Contoso_x86",
